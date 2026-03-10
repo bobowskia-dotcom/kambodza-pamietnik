@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="pl" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kambodża 2026 - Interaktywny Pamiętnik Wyprawy</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: '#fdf6e3',      // Warm neutral background
+                            green: '#2d6a4f',   // Jungle green
+                            orange: '#e76f51',  // Deep orange/terracotta
+                            yellow: '#e9c46a',  // Sand yellow
+                            blue: '#2a9d8f',    // Ocean blue
+                            text: '#334155'     // Slate gray for text
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                        serif: ['Merriweather', 'Georgia', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Styles & Custom Utilities */
+        body {
+            background-color: #fdf6e3;
+            color: #334155;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Chart Container Constraint (CRITICAL REQUIREMENT) */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 400px; }
+        }
+        @media (min-width: 1024px) {
+            .chart-container.large-chart { max-width: 1000px; height: 450px; }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #fdf6e3; }
+        ::-webkit-scrollbar-thumb { background: #2a9d8f; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d6a4f; }
+
+        /* Interactive Timeline Node Styles */
+        .timeline-node { transition: all 0.3s ease; }
+        .timeline-node.active {
+            background-color: #2d6a4f;
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .timeline-node.active .node-icon { background-color: white; }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+        /* Photo Placeholder */
+        .photo-placeholder {
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            border: 2px dashed #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #64748b;
+            font-weight: 500;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            min-height: 180px;
+            transition: all 0.3s ease;
+            /* Usunięto height: 100%; co powodowało ucinanie zdjęć! */
+        }
+        .photo-placeholder:hover {
+            border-color: #2a9d8f;
+            color: #2a9d8f;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        }
+        
+        /* Zdjęcia dodane przez użytkownika */
+        .user-photo {
+            width: 100%;
+            height: auto; /* Pozwala zdjęciu zachować naturalne proporcje */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body class="bg-brand-bg font-sans leading-relaxed">
+
+    <!-- Chosen Palette: Warm Jungle (Neutrals: #fdf6e3, Accents: #2d6a4f, #e76f51, #e9c46a, #2a9d8f) -->
+    
+    <!-- Application Structure Plan: 
+         1. Hero Section: Sets the context, participants, and timeline.
+         2. Interactive "Dziennik Podróży": A sidebar/grid layout. Highly granular day-by-day navigation on the left. On the right, expanded rich text descriptions with 4 photo placeholders per content section to allow for a rich visual gallery.
+         3. Culinary Duel: Side-by-side comparison with dedicated image placeholders integrated directly into the layout for the specific dishes (Rat, Lok Lak, Fruits).
+         4. Data Dashboard & Transport Gallery: Data visualizations (Doughnut/Bar charts) plus a dedicated visual grid for 6 transport mode photos.
+    -->
+
+    <!-- Visualization & Content Choices: 
+         1. Travel Story -> Goal: Explore detailed chapters -> Method: Interactive Sidebar -> Interaction: Click to load deep content -> NO SVG used.
+         2. Food Challenge -> Goal: Compare extremes -> Method: Interactive Grid Cards with inline photo placeholders -> NO SVG used.
+         3. Distance Stats -> Goal: Inform on scale -> Method: Doughnut & Bar Chart (Chart.js) + HTML Photo Grid.
+    -->
+
+    <!-- Navigation Header -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-2">🇰🇭</span>
+                    <span class="font-serif font-bold text-brand-green text-xl tracking-tight">Kambodża 2026</span>
+                </div>
+                <div class="flex items-center space-x-4 hidden sm:flex">
+                    <a href="#dziennik" class="text-gray-600 hover:text-brand-green font-medium transition">Dziennik Pokładowy</a>
+                    <a href="#kulinaria" class="text-gray-600 hover:text-brand-orange font-medium transition">Kulinaria</a>
+                    <a href="#statystyki" class="text-gray-600 hover:text-brand-blue font-medium transition">Statystyki</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="relative pt-16 pb-24 lg:pt-24 lg:pb-32 overflow-hidden bg-brand-green text-white">
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <span class="inline-block py-1 px-3 rounded-full bg-white/20 text-brand-yellow font-semibold text-sm tracking-wider uppercase mb-4 shadow-sm border border-white/30">
+                13.02.2026 – 04.03.2026
+            </span>
+            <h1 class="text-4xl md:text-5xl lg:text-7xl font-serif font-bold tracking-tight mb-6 drop-shadow-lg">
+                Pamiętnik z Krainy Khmerów
+            </h1>
+            <p class="mt-4 max-w-2xl mx-auto text-xl text-green-100 font-light leading-relaxed">
+                Zamieniliśmy polską zimę na zapach cynamonu, wilgotną dżunglę i starożytne tajemnice. Poznaj naszą wielką rodzinną wyprawę.
+            </p>
+            
+            <div class="mt-10 max-w-3xl mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-xl">
+                <h3 class="text-sm uppercase tracking-widest text-brand-yellow font-bold mb-4">Skład Ekspedycji</h3>
+                <div class="flex flex-wrap justify-center gap-4 text-lg">
+                    <span class="bg-white/20 px-4 py-2 rounded-lg shadow-sm">👨 Tata Adam</span>
+                    <span class="bg-white/20 px-4 py-2 rounded-lg shadow-sm">👩 Mama Dorota</span>
+                    <span class="bg-white/20 px-4 py-2 rounded-lg shadow-sm">👧 Lilka (7 lat)</span>
+                    <span class="bg-white/20 px-4 py-2 rounded-lg shadow-sm">👶 Tomek (2 lata)</span>
+                    <span class="bg-white/20 px-4 py-2 rounded-lg shadow-sm">🦸‍♂️ Miki</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Interactive Story Section -->
+    <section id="dziennik" class="py-16 bg-brand-bg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-serif font-bold text-brand-green">Interaktywny Dziennik Podróży</h2>
+                <div class="h-1 w-24 bg-brand-yellow mx-auto mt-4 rounded-full"></div>
+                <p class="mt-4 text-gray-600 max-w-3xl mx-auto text-lg">
+                    Wybierz interesujący Cię etap wyprawy z menu po lewej stronie. Przeczytaj nasze niesamowite wspomnienia i wklej aż 4 zdjęcia do każdego z rozdziałów zwiedzania!
+                </p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Timeline Navigation (Left) -->
+                <div class="w-full lg:w-1/3">
+                    <div class="sticky top-24 bg-white rounded-2xl shadow-md p-4 border border-gray-100 max-h-[80vh] overflow-y-auto">
+                        <h3 class="font-bold text-gray-500 uppercase tracking-wider text-sm mb-4 px-2">Etapy Wyprawy</h3>
+                        <nav id="story-nav" class="flex flex-col space-y-2">
+                            <!-- Populated by JS -->
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Content Area (Right) -->
+                <div class="w-full lg:w-2/3">
+                    <div id="story-content" class="bg-white rounded-3xl shadow-xl p-6 md:p-10 border border-gray-100 min-h-[600px]">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Food Duel Section -->
+    <section id="kulinaria" class="py-16 bg-white border-y border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-serif font-bold text-brand-orange">Kulinarny Pojedynek</h2>
+                <div class="h-1 w-24 bg-brand-orange mx-auto mt-4 rounded-full"></div>
+                <p class="mt-4 text-gray-600 max-w-3xl mx-auto text-lg">
+                    Azja to eksplozja smaków. Porównaj ekstremalne wyzwania z lokalnymi pysznościami i wklej fotograficzne dowody naszych uczt!
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 lg:gap-12 items-stretch">
+                <!-- Hardcore Column -->
+                <!-- Dodano flex flex-col i usunięto ukrywanie overflow, aby zdjęcia mogły rosnąć -->
+                <div class="bg-orange-50 rounded-3xl p-8 border-2 border-brand-orange shadow-lg relative group flex flex-col">
+                    <div class="absolute top-0 right-0 p-4 opacity-20 text-6xl group-hover:scale-110 transition-transform">🐀</div>
+                    <h3 class="text-2xl font-bold text-brand-orange mb-6 border-b border-orange-200 pb-4 z-10">
+                        Wyzwanie dla Odważnych
+                    </h3>
+                    <p class="text-gray-700 mb-6 font-medium z-10">
+                        Plany nieco się zmieniły. Smażonej tarantuli (A-Ping) niestety nie udało się nam nigdzie znaleźć. Ale to nie znaczy, że zabrakło ekstremów! Tata Adam i Tomek podjęli rękawicę.
+                    </p>
+                    <ul class="space-y-4 mb-8 z-10">
+                        <li class="flex items-start bg-white p-4 rounded-xl shadow-sm border border-orange-100">
+                            <span class="text-3xl mr-4">🐀</span>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Smażony Szczur</h4>
+                                <p class="text-sm text-gray-600">Prawdziwy azjatycki sprawdzian! Zjedzony ze smakiem zarówno przez Tatę, jak i Tomka.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start bg-white p-4 rounded-xl shadow-sm border border-orange-100">
+                            <span class="text-3xl mr-4">🐸</span>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Kambodżańska Żaba</h4>
+                                <p class="text-sm text-gray-600">Kolejny kulinarny hardcore zaliczony z podniesionym czołem na talerzach odkrywców.</p>
+                            </div>
+                        </li>
+                    </ul>
+                    <!-- Dedicated Photo Placeholder (Większy i elastyczny) -->
+                    <div class="photo-placeholder mt-auto bg-white border-orange-300 text-orange-600 min-h-[350px] w-full rounded-xl overflow-hidden z-10">
+                        <div class="p-4 text-center">
+                            <span class="block text-4xl mb-2">📸 🐀</span>
+                            <span class="text-sm font-bold">[Zdjęcie zjedzonego szczura lub żaby!]</span><br>
+                            <span class="text-xs text-gray-500 font-normal mt-2 block">(Gdy wstawisz tu swój tag img z klasą user-photo, ramka automatycznie się powiększy)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kids Column -->
+                <div class="bg-teal-50 rounded-3xl p-8 border-2 border-brand-blue shadow-lg relative group flex flex-col">
+                    <div class="absolute top-0 right-0 p-4 opacity-20 text-6xl group-hover:scale-110 transition-transform">🥭</div>
+                    <h3 class="text-2xl font-bold text-brand-blue mb-6 border-b border-teal-200 pb-4 z-10">
+                        Menu Lilki i Małego Tomka
+                    </h3>
+                    <p class="text-gray-700 mb-6 font-medium z-10">
+                        Pychotki ostatecznie wygrały starcie! Połączenie słodyczy, egzotycznych owoców i łagodnych smaków to był strzał w dziesiątkę dla najmłodszych.
+                    </p>
+                    <ul class="space-y-4 mb-8 z-10">
+                        <li class="flex items-start bg-white p-4 rounded-xl shadow-sm border border-teal-100">
+                            <span class="text-3xl mr-4">🍲</span>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Wołowina Lok Lak</h4>
+                                <p class="text-sm text-gray-600">Absolutny faworyt Lilki! Tradycyjna, przepyszna wołowina z ryżem i specjalnym sosem pieprzowo-cytrynowym.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start bg-white p-4 rounded-xl shadow-sm border border-teal-100">
+                            <span class="text-3xl mr-4">🥥</span>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Lody Kokosowe i Kralan</h4>
+                                <p class="text-sm text-gray-600">Słodki ryż pieczony w bambusie i lody serwowane prosto w prawdziwej łupinie kokosa.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start bg-white p-4 rounded-xl shadow-sm border border-teal-100">
+                            <span class="text-3xl mr-4">🍹</span>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Szejkowe Szaleństwo</h4>
+                                <p class="text-sm text-gray-600">Niekończące się ilości przepysznych, świeżych szejków z mango i smoczego owocu (dragon fruit).</p>
+                            </div>
+                        </li>
+                    </ul>
+                    <!-- Dedicated Photo Placeholder (Większy i elastyczny) -->
+                    <div class="photo-placeholder mt-auto bg-white border-teal-300 text-teal-600 min-h-[350px] w-full rounded-xl overflow-hidden z-10">
+                        <div class="p-4 text-center">
+                            <span class="block text-4xl mb-2">📸 🍲</span>
+                            <span class="text-sm font-bold">[Zdjęcie pysznego Lok Laka Lili!]</span><br>
+                            <span class="text-xs text-gray-500 font-normal mt-2 block">(Gdy wstawisz tu swój tag img z klasą user-photo, ramka automatycznie się powiększy)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Fruit Note with Placeholder -->
+            <div class="mt-8 bg-brand-yellow/10 rounded-2xl p-6 md:p-10 border border-brand-yellow text-center max-w-5xl mx-auto shadow-sm">
+                <span class="text-5xl block mb-4">🍍🍉🍌</span>
+                <h4 class="font-bold text-gray-800 text-2xl mb-4">Rodzinne Owocowe Szaleństwo</h4>
+                <p class="text-gray-700 text-lg mb-8 max-w-3xl mx-auto">
+                    Postanowiliśmy spróbować dosłownie wszystkiego! Każdy nowy, egzotyczny owoc, który wpadł nam w ręce na lokalnym targu, został przez nas wspólnie skrupulatnie obrany, przetestowany i skosztowany!
+                </p>
+                <div class="photo-placeholder bg-white border-yellow-400 text-yellow-700 min-h-[400px] w-full max-w-3xl mx-auto rounded-xl">
+                    <div class="p-4 text-center">
+                        <span class="block text-4xl mb-2">📸 🥭</span>
+                        <span class="text-base font-bold">[Miejsce na zdjęcie całej rodziny z egzotycznymi owocami lub szejkami]</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section id="statystyki" class="py-16 bg-brand-bg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-serif font-bold text-brand-blue">Trasy i Statystyki w Liczbach</h2>
+                <div class="h-1 w-24 bg-brand-blue mx-auto mt-4 rounded-full"></div>
+                <p class="mt-4 text-gray-600 max-w-3xl mx-auto text-lg">
+                    Zjechaliśmy ten piękny kraj wzdłuż i wszerz, pokonując ponad <strong>27 000 kilometrów</strong>. 
+                </p>
+            </div>
+
+            <!-- Stats Overview Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                <div class="bg-white rounded-2xl p-6 text-center shadow-md border-b-4 border-blue-400">
+                    <span class="text-3xl block mb-2">✈️</span>
+                    <div class="font-bold text-3xl text-gray-800">6</div>
+                    <div class="text-sm text-gray-500 font-medium uppercase mt-1">Lotów</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-md border-b-4 border-green-500">
+                    <span class="text-3xl block mb-2">🚶</span>
+                    <div class="font-bold text-3xl text-gray-800">200<span class="text-lg">km</span></div>
+                    <div class="text-sm text-gray-500 font-medium uppercase mt-1">Pieszo!</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-md border-b-4 border-yellow-500">
+                    <span class="text-3xl block mb-2">🛺</span>
+                    <div class="font-bold text-3xl text-gray-800">22</div>
+                    <div class="text-sm text-gray-500 font-medium uppercase mt-1">Przejazdy Tuk-Tukiem</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-md border-b-4 border-indigo-500">
+                    <span class="text-3xl block mb-2">🌙</span>
+                    <div class="font-bold text-3xl text-gray-800">1</div>
+                    <div class="text-sm text-gray-500 font-medium uppercase mt-1">Noc w Sleeper Busie</div>
+                </div>
+            </div>
+
+            <!-- Charts Area -->
+            <div class="grid lg:grid-cols-2 gap-10 mb-16">
+                <!-- Doughnut Chart: Overall Scale -->
+                <div class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col items-center">
+                    <h3 class="text-xl font-bold text-center text-gray-800 mb-2">Całkowity Przebyty Dystans</h3>
+                    <p class="text-sm text-gray-500 text-center mb-6">Proporcja lotów kontynentalnych do podróży lądowych</p>
+                    <div class="chart-container w-full max-w-md mx-auto relative flex-grow">
+                        <canvas id="totalDistanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Ground Transport Breakdown -->
+                <div class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col items-center">
+                    <h3 class="text-xl font-bold text-center text-gray-800 mb-2">Transport Lądowy i Wodny</h3>
+                    <p class="text-sm text-gray-500 text-center mb-6">Szczegółowy rozkład kilometrów pokonanych na miejscu w Kambodży</p>
+                    <div class="chart-container w-full max-w-lg mx-auto relative flex-grow">
+                        <canvas id="groundTransportChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transport Photo Gallery -->
+            <h3 class="text-2xl font-bold text-center text-gray-800 mb-8 border-t border-gray-300 pt-8">Galeria Środków Transportu</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
+                <div class="photo-placeholder bg-white min-h-[160px]"><div><span class="block text-2xl mb-1">✈️</span><span class="text-xs font-bold">[Zdjęcie Samolotu / Lotniska]</span></div></div>
+                <div class="photo-placeholder bg-white min-h-[160px]"><div><span class="block text-2xl mb-1">🚌</span><span class="text-xs font-bold">[Zdjęcie Nocnego Autobusu]</span></div></div>
+                <div class="photo-placeholder bg-white min-h-[160px]"><div><span class="block text-2xl mb-1">🚙</span><span class="text-xs font-bold">[Zdjęcie Prywatnego Auta]</span></div></div>
+                <div class="photo-placeholder bg-white min-h-[160px]"><div><span class="block text-2xl mb-1">🛺</span><span class="text-xs font-bold">[Wiatr we włosach - Tuk-Tuk]</span></div></div>
+                <div class="photo-placeholder bg-white min-h-[160px]"><div><span class="block text-2xl mb-1">🚶</span><span class="text-xs font-bold">[Zdjęcie ze spaceru/Pieszo]</span></div></div>
+                <div class="photo-placeholder bg-white min-h-[160px]"><div><span class="block text-2xl mb-1">🚤</span><span class="text-xs font-bold">[Speedboat / Łódź na jeziorze]</span></div></div>
+            </div>
+
+            <!-- Summary -->
+            <div class="mt-12 bg-white rounded-3xl p-8 shadow-md border border-gray-100 text-center max-w-4xl mx-auto">
+                <span class="text-4xl block mb-4">🏆</span>
+                <h3 class="text-2xl font-bold text-brand-green mb-4">Logistyczne Zwycięstwo</h3>
+                <div class="grid sm:grid-cols-2 gap-4 text-left text-gray-700">
+                    <div class="flex items-center space-x-3"><span class="text-green-500 font-bold">✔️</span><span>Mieliśmy najpiękniejsze dolary w Azji.</span></div>
+                    <div class="flex items-center space-x-3"><span class="text-green-500 font-bold">✔️</span><span>E-wizy pozwoliły ominąć kolejki.</span></div>
+                    <div class="flex items-center space-x-3"><span class="text-green-500 font-bold">✔️</span><span>Tuk-Tuki z Graba były strzałem w 10.</span></div>
+                    <div class="flex items-center space-x-3"><span class="text-green-500 font-bold">✔️</span><span>Dzieci zniosły to jak komandosi!</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-10 text-center">
+        <div class="max-w-7xl mx-auto px-4">
+            <p class="font-serif text-xl font-bold mb-4">Kambodża 2026</p>
+            <p class="text-gray-400 max-w-2xl mx-auto">
+                To nie były tylko wakacje. To tysiące uśmiechów, zapach przypraw, wiatr we włosach podczas jazdy tuk-tukiem i wspomnienia, których nie da się wymazać ani kupić. Zamykamy oczy i planujemy kolejną podróż! ❤️
+            </p>
+        </div>
+    </footer>
+
+    <!-- Application Logic -->
+    <script>
+        // --- DATA LAYER ---
+        // Storing the deeply detailed textual content and narrative from the Markdown diary
+        const storyData = [
+            {
+                id: 'wstep',
+                title: 'Start: Kraina Khmerów',
+                date: '13.02 - 15.02.2026',
+                icon: '✈️',
+                intro: 'Wszystko zaczęło się w piątek, 13 lutego. Zamiast pecha, ten dzień przyniósł nam początek przygody życia.',
+                content: `
+                    <p class="mb-4">Wyruszyliśmy z ulicy Długiej w Chorzowie prosto do Warszawy, by po krótkim noclegu zamienić polską zimę na gorące, pachnące cynamonem i wilgocią powietrze Kambodży.</p>
+                    <p class="mb-6">Z plecakami pełnymi idealnie wyprasowanych dolarów i z e-wizami w ręku ruszyliśmy na podbój Krainy Khmerów! Naszą bazą wypadową stało się Siem Reap. To tutaj, po długich lotach, zaczęliśmy naszą niesamowitą przygodę ze starożytną historią.</p>
+                `,
+                placeholders: [
+                    { src: 'images/lot1.jpg' }
+                ]
+            },
+            {
+                id: '16-02',
+                title: '16.02: Giganci Preah Khan i Pre Rup',
+                date: '16.02.2026',
+                icon: '🛕',
+                intro: 'Zaczęliśmy mocnym uderzeniem, zwiedzając kompleks w blasku popołudniowego słońca.',
+                content: `
+                    <p class="mb-4">Nasze pierwsze przetarcie szlaków to słynny <strong>Sunset Tour</strong>. Z każdym krokiem chłonęliśmy potęgę dawnego imperium. Odkryliśmy, jak niesamowicie mądrzy byli Khmerowie.</p>
+                    <ul class="space-y-4 mb-6 list-none">
+                        <li class="pl-4 border-l-4 border-brand-green"><strong class="text-gray-800">Preah Khan:</strong> Nasza pierwsza świątynia i absolutny zachwyt. To niegdyś potężny uniwersytet buddyjski! To istny labirynt zarośnięty przez gigantyczne drzewa spung. Co ciekawe, jego kamienne korytarze stają się coraz niższe w miarę zbliżania do samego centrum, co dosłownie zmuszało nas do pochylenia głowy i pełnego szacunku ukłonu.</li>
+                        <li class="pl-4 border-l-4 border-brand-green"><strong class="text-gray-800">Neak Pean:</strong> Starożytny, mistyczny szpital na wyspie! Zobaczyliśmy tam unikalny system basenów ułożonych w kształt kwiatu lotosu, połączonych rzygaczami w kształcie głów zwierząt (słonia, konia, lwa) i ludzi. To właśnie tutaj setki lat temu leczono pielgrzymów wodą uświęconą potęgą czterech żywiołów.</li>
+                        <li class="pl-4 border-l-4 border-brand-green"><strong class="text-gray-800">Ta Som & East Mebon:</strong> Ta Som to urokliwa świątynia na uboczu, która wynagrodziła nam spacer niesamowitym widokiem wschodniej bramy całkowicie oplecionej przez korzenie gigantycznego drzewa figowego. East Mebon z kolei to prawdziwa ceglana góra, na której największe wrażenie zrobiły na nas wspaniałe, wciąż doskonale zachowane monumentalne rzeźby słoni strzegące narożników tej misternej konstrukcji.</li>
+                        <li class="pl-4 border-l-4 border-brand-green"><strong class="text-gray-800">Pre Rup:</strong> Idealne, romantyczne zwieńczenie pierwszego dnia. Wspięliśmy się na najwyższe ceglane wieże tej "świątyni-góry", by podziwiać, jak zachód słońca oblewa całą okoliczną dżunglę i czerwoną cegłę ciepłym, pomarańczowym światłem.</li>
+                    </ul>
+                `,
+                placeholders: [
+                    { src: 'images/PreahKhan.jpg' },
+{ src: 'images/Tasamo.jpg' },
+                    { src: 'images/neak.jpg' },
+                                        { src: 'images/prerup.jpg' }
+                ]
+            },
+            {
+                id: '17-02',
+                title: '17.02: Rzeczne Tajemnice i Różowa Twierdza',
+                date: '17.02.2026',
+                icon: '🌸',
+                intro: 'Ten dzień udowodnił nam, że najcenniejsze skarby Angkoru kryją się również głęboko w dżungli, z dala od głównych murów.',
+                content: `
+                    <p class="mb-4">Opuściliśmy główny kompleks, by wyruszyć na fascynujący trekking i poszukać najstarszych, najbardziej misternych zabytków w regionie.</p>
+                    <ul class="space-y-4 mb-6 list-none">
+                        <li class="pl-4 border-l-4 border-brand-orange"><strong class="text-gray-800">Kbal Spean (Rzeka Tysiąca Ling):</strong> To był niesamowity spacer i wspinaczka przez gęstą dżunglę do samego koryta rzeki. Byliśmy w szoku widząc, jak setki lat temu rzeźbiarze wykuli niezliczone święte symbole (lingamy) oraz wizerunki bogów bezpośrednio w skalistym dnie rzeki. Wierzono, że woda omywająca te kamienie stawała się natychmiast uświęcona, niosąc błogosławieństwo na pola ryżowe położone w dolinie.</li>
+                        <li class="pl-4 border-l-4 border-brand-orange"><strong class="text-gray-800">Banteay Samre:</strong> Niezwykła świątynia w stylu Angkor Wat, która jednak bardzo często umyka uwadze wycieczek. Dzięki temu mieliśmy jej potężne, doskonale zrekonstruowane mury i wewnętrzną fosę niemal tylko dla siebie. Mogliśmy poczuć się jak prawdziwi odkrywcy wędrujący jej świetnie zachowanymi dziedzińcami w absolutnej ciszy.</li>
+                        <li class="pl-4 border-l-4 border-brand-orange"><strong class="text-gray-800">Banteay Srei (Twierdza Kobiet):</strong> Prawdziwa różowa perła całej Kambodży! Mniejsza niż inne giganty, ale za to misterna jak najdroższa koronka. Zbudowana w całości z rzadkiego, różowego piaskowca. Legenda mówi, że jej trójwymiarowe, florystyczne detale i postacie bogiń są tak nieprawdopodobnie doskonałe i filigranowe, że musiały wyrzeźbić je wyłącznie małe, kobiece dłonie.</li>
+                    </ul>
+                `,
+                placeholders: [
+                    { src: 'images/kbal.jpg' },
+                    { src: 'images/Samre.jpg' },
+                    { src: 'images/Srei.jpg' },
+                    { src: 'images/East.jpg' },
+                ]
+            },
+            {
+                id: '18-02',
+                title: '18.02: Wielka Trójka i Tancerki Apsara',
+                date: '18.02.2026',
+                icon: '🗿',
+                intro: 'Byliśmy zmęczeni, więc z ulgą odpuściliśmy zrywanie się w środku nocy na wschód słońca. To była doskonała decyzja – regeneracja dała nam siły na spotkanie z "Największymi Gigantami".',
+                content: `
+                    <p class="mb-4">Tego dnia zwiedziliśmy najbardziej ikoniczne miejsca na mapie świata, o których od zawsze czytaliśmy w przewodnikach.</p>
+                    <ul class="space-y-4 mb-6 list-none">
+                        <li class="pl-4 border-l-4 border-gray-400"><strong class="text-gray-800">Angkor Wat:</strong> Król wszystkich świątyń. Największa budowla religijna świata i architektoniczny cud z pięcioma wieżami w kształcie pąków lotosu. Spacerowaliśmy nieskończonymi galeriami, podziwiając gigantyczny komiks w kamieniu, w tym mityczną i słynną na cały świat scenę "Ubijania Oceanu Mleka" przedstawiającą walkę demonów i bogów. Skala tego miejsca absolutnie przytłacza!</li>
+                        <li class="pl-4 border-l-4 border-gray-400"><strong class="text-gray-800">Bayon:</strong> Mistyczne serce potężnego miasta Angkor Thom. To słynna "Świątynia uśmiechów" zbudowana przez potężnego króla Dżajawarmana VII. To tu patrzyło na nas z każdej możliwej strony dokładnie 216 uśmiechniętych, wielkich kamiennych twarzy boga współczucia. Gdziekolwiek nie stanęliśmy – mieliśmy wrażenie, że posągi na nas patrzą. Prawdziwie mistyczne przeżycie!</li>
+                        <li class="pl-4 border-l-4 border-gray-400"><strong class="text-gray-800">Ta Prohm:</strong> Świątynia znana ze słynnego filmu "Tomb Raider", która absolutnie skradła nasze serca. Potężne, srebrne drzewa (spung) dosłownie pożerające mury i ich gigantyczne, spływające jak wosk korzenie to żywy dowód na to, że z dżunglą i naturą nie da się wygrać. Oczywiście szukaliśmy i znaleźliśmy słynnego, wyrzeźbionego stegozaura na jednej z kolumn!</li>
+                    </ul>
+                    <p class="mb-2">Ten niezwykle intensywny dzień zakończyliśmy wspaniałym, wieczornym widowiskiem – zasiedliśmy do kolacji, by podziwiać tradycyjny taniec <strong>Apsara</strong>, gdzie znakomicie ubrane tancerki za pomocą ponad 1500 mistrzowskich ruchów dłoni opowiadały nam starożytne, kambodżańskie legendy.</p>
+                `,
+                placeholders: [
+                    { src: 'images/Angkor.jpg' },
+                    { src: 'images/Bayon2.jpg' },
+                    { src: 'images/taphrom.jpg' },
+                    { src: 'images/Apsara.jpg' },
+                ]
+            },
+            {
+                id: '19-02',
+                title: '19.02: Święta Góra i Wioska na Wodzie',
+                date: '19.02.2026',
+                icon: '🏞️',
+                intro: 'Kambodża to nie tylko kamienne mury. Ten dzień przyniósł nasz najdłuższy dystans samochodem (ponad 140 km!) i niesamowity miks widoków, od szczytów górskich po życie na wodzie.',
+                content: `
+                    <p class="mb-4">Zaczęliśmy od zdobycia <strong>Peong Ta Kho (Zjawiskowego Klifu)</strong>. Stanęliśmy na krawędzi stromej, niemal pionowej ściany skalnej, z której rozpościerał się zapierający dech w piersiach, bezkresny widok na soczyście zieloną dżunglę poniżej.</p>
+                    <p class="mb-4">Następnie ruszyliśmy na sam szczyt najświętszej góry Khmerów – <strong>Phnom Kulen</strong>. To tutaj w 802 roku narodziło się Imperium. Odwiedziliśmy lokalną świątynię, w której podziwialiśmy gigantycznego, leżącego Buddę, misternie wykutego na samym czubku wielkiej, naturalnej formacji skalnej. Zobaczyliśmy kolejną rzekę 1000 Ling, po czym nadszedł czas na nagrodę!</p>
+                    <p class="mb-4">Zanurzyliśmy się w potężnych, orzeźwiających i chłodnych wodach <strong>kaskadowego wodospadu Phnom Kulen</strong> – dokładnie w tym samym miejscu, w którym tysiąc lat temu kąpali się i oczyszczali starożytni królowie! To była niesamowita ulga od upału.</p>
+                    <p class="mb-4">Z gór zjechaliśmy prosto na wodę do <strong>Floating Village (Kampong Phluk)</strong>. Z pokładu drewnianej łodzi odkrywaliśmy zupełnie inną rzeczywistość. Widzieliśmy pływającą wioskę, w której kolorowe domy stoją na wysokich na 8 metrów, drewnianych palach, a całe codzienne życie lokalnych rodzin (nawet szkoła!) toczy się na wodach powiększającego się w porze deszczowej jeziora Tonle Sap.</p>
+                `,
+                placeholders: [
+                    { src: 'images/klif.jpg' },
+                    { src: 'images/Wodospad.jpg' },
+                    { src: 'images/gora.jpg' },
+                    { src: 'images/Wiocha.jpg' },
+                ]
+            },
+            {
+                id: '20-02',
+                title: '20.02: Spotkanie z Olbrzymami',
+                date: '20.02.2026',
+                icon: '🐘',
+                intro: 'Jeden z najpiękniejszych, najbardziej wzruszających i relaksujących dni całej naszej wyprawy. Odłożyliśmy zwiedzanie murów i udaliśmy się do lasu.',
+                content: `
+                    <p class="mb-4 border-l-4 border-brand-green pl-4 bg-green-50 p-4 rounded-r-xl">W <strong>Kulen Elephant Forest</strong> spotkaliśmy wyjątkowych mieszkańców – słonie będące już na zasłużonej emeryturze. W tym wspaniałym sanktuarium najważniejszy jest szacunek dla zwierząt. Obowiązuje tu całkowity zakaz ujeżdżania!</p>
+                    <p class="mb-4">Nasz czas polegał wyłącznie na okazywaniu im czułości i opiece. Mieliśmy okazję spacerować u ich boku ścieżkami gęstego lasu, głaskać ich szorstką skórę i co najważniejsze – karmić je z ręki dosłownie tonami świeżych bananów, które znikały w mgnieniu oka.</p>
+                    <p class="mb-4">Nasza odważna Lilka zdała swój "Test Trąby" na szóstkę z plusem, bez strachu podając przysmaki ogromnym, ale niezwykle łagodnym zwierzętom. Mały Tomek również był zafascynowany tymi mądrymi gigantami. To było czyste, magiczne doświadczenie połączenia z naturą.</p>
+                `,
+                placeholders: [
+                    { src: 'images/slonie.jpg' },
+{ src: 'images/Kapiel.jpg' },
+                    { src: 'images/traba.jpg' },
+                    { src: 'images/slon.jpg' },
+                    
+                ]
+            },
+            {
+                id: '21-22',
+                title: '21-22.02: Bambusowy Pociąg w Battambang',
+                date: '21.02 - 22.02.2026',
+                icon: '🚂',
+                intro: 'Przenieśliśmy się do prowincjonalnego, pełnego francuskiego uroku Battambang. Po 21.02, który był dniem ładowania baterii na basenie, nasza przygoda nabrała zupełnie szalonego tempa!',
+                content: `
+                    <p class="mb-4">22.02 rzuciliśmy się w wir zwiedzania tuk-tukami. Na lokalnym markecie testowaliśmy tradycyjną, ręczną produkcję cieniutkich, słodkich, suszonych bananów. Były obłędne! Zaraz po zwiedzaniu świątyni <strong>Wat Samrong Knong</strong> przeprawialiśmy się przez trzeszczący, linowo-drewniany <strong>Wiszący Most</strong>, który dostarczył nam mnóstwo śmiechu.</p>
+                    <p class="mb-4 font-bold text-xl text-brand-orange border-b border-orange-200 pb-2">Absolutny hit wyjazdu: Bamboo Train (Norry)!</p>
+                    <p class="mb-4">Wsiedliśmy na małą, prowizoryczną bambusową platformę wyposażoną w stary silniczek z traktora. Pędziliśmy po powyginanych, starych torach przez środek pól ryżowych, czując prawdziwy wiatr we włosach! Najlepsze było to, że tory są tylko jedne. Gdy z naprzeciwka jechał inny "pociąg", musieliśmy... szybko zeskoczyć, całkowicie rozebrać naszą platformę, przenieść ją na trawę, przepuścić tamtych i złożyć nasz pociąg z powrotem!</p>
+                    <p class="mb-4">Popołudniem wspięliśmy się na górę <strong>Phnom Sampow</strong> z niesamowitymi jaskiniami Pkar Slar Cave i wszędobylskimi, domagającymi się uwagi makakami (małpami).</p>
+                    <p class="mb-4">O zachodzie słońca czekał nas spektakularny finał dnia przy <strong>Bat Cave</strong>. Z jaskini, jak na zawołanie, wyleciały dosłownie miliony nietoperzy, tworząc na wieczornym niebie wijącą się, niekończącą się czarną wstęgę. Prawdziwa magia!</p>
+                `,
+                placeholders: [
+                    { src: 'images/Bamboo.jpg' },
+                    { src: 'images/Banan.jpg' },
+                    { src: 'images/Most.jpg' },
+                    { src: 'images/Nietoprze.jpg' },
+                ]
+            },
+            {
+                id: '23-24',
+                title: '23-24.02: Trzy Rzeki i Królewskie Zmiany w Phnom Penh',
+                date: '23.02 - 24.02.2026',
+                icon: '🏙️',
+                intro: 'Pożegnaliśmy prowincję i ruszyliśmy do głośnej, tętniącej życiem i pełnej skrajności stolicy. Te dwa dni były pełne relaksu, historii i bardzo niespodziewanych zmian planów!',
+                content: `
+                    <p class="mb-4"><strong>23.02:</strong> Zaczęliśmy wspaniale. Basen w naszym hotelu oferował obłędny widok na rzekę i panoramę miasta. Popołudniem wypłynęliśmy na wspaniały rejs, aby na własne oczy zobaczyć rzadki fenomen – miejsce, w którym na tle pomarańczowego zachodu słońca łączą się nurty aż trzech wielkich rzek (w tym potężnego Mekongu). Nocny spacer po gwarnym targu jedzeniowym (Night Market) był idealnym zwieńczeniem dnia.</p>
+                    <p class="mb-4"><strong>24.02:</strong> Poranek rozpoczęliśmy od targu miejskiego. Potem ekipa musiała się rozdzielić: Tata Adam i Miki zmierzyli się z trudną historią Czerwonych Khmerów w Muzeum Ludobójstwa (Tuol Sleng), podczas gdy Mama, Lilka i Tomek schronili się przed upałem na naszym niezawodnym basenie.</p>
+                    <p class="mb-4 border-l-4 border-yellow-400 pl-4 bg-yellow-50 p-3 rounded"><strong>A potem zjawił się Król!</strong> Po obiedzie ruszyliśmy z pompą na zwiedzanie słynnego Pałacu Królewskiego i Srebrnej Pagody. Niestety (albo i stety dla przygody) pocałowaliśmy klamkę! Bramy były zamknięte na cztery spusty z powodu wizyty samego Króla Kambodży.</p>
+                    <p class="mb-4">Błyskawicznie wynajęliśmy świetnego lokalnego kierowcę tuk-tuka, który zabrał nas na alternatywny objazd perełek stolicy. Zobaczyliśmy przepiękną, ociekającą złotem <strong>Kien Khleang Pagoda</strong>, odwiedziliśmy <strong>Wat Prachum Sakor</strong> – intrygującą świątynię całkowicie opanowaną przez stada małp, oraz <strong>Wat Sampov Treleak</strong> – kuriozalną świątynię zintegrowaną z ogromną, betonową łodzią. Dzień zakończyliśmy na nabrzeżu, chłonąc klimat lokalnych przepraw promowych.</p>
+                `,
+                placeholders: [
+                    { src: 'images/Mekong.jpg' },
+                    { src: 'images/Mekong2.jpg' },
+                    { src: 'images/gold2.jpg' },
+                    { src: 'images/gold.jpg' },
+                ]
+            },
+            {
+                id: '25-26',
+                title: '25-26.02: Kampot, Sól, Kraby i Światowy Pieprz',
+                date: '25.02 - 26.02.2026',
+                icon: '🦀',
+                intro: 'Z dusznej stolicy uciekliśmy do spokojnego Kampotu. Po całym 25.02 spędzonym na cudownej sielance i basenowym chilloucie, ruszyliśmy na potężną, 80-kilometrową wycieczkę tuk-tukami.',
+                content: `
+                    <p class="mb-4">Nasz kierowca zabrał nas w objazd po największych, prowincjonalnych i kulinarnych cudach południa. To był dzień pełen smaków i niesamowitych widoków.</p>
+                    <ul class="space-y-4 mb-6 list-none">
+                        <li class="pl-4 border-l-4 border-brand-blue"><strong class="text-gray-800">Pola Solne (Salt Fields):</strong> Zobaczyliśmy ogromne, płaskie połacie ziemi lśniące w pełnym słońcu. To tutaj morka woda wlewa się na pola, gdzie powoli paruje, zostawiając kryształki cennego "białego złota", zbieranego przez ciężko pracujących lokalsów.</li>
+                        <li class="pl-4 border-l-4 border-brand-blue"><strong class="text-gray-800">Jaskinia Phnom Chhngok:</strong> Poczuliśmy się jak prawdziwi grotołazi! Zeszliśmy po stromych schodach głęboko w mrok wapiennej jaskini, między zachwycające stalaktyty, by w jej samym sercu odkryć ukrytą, tajemniczą ceglaną świątynię poświęconą bogu Sziwie, pochodzącą aż z VII wieku!</li>
+                        <li class="pl-4 border-l-4 border-brand-blue"><strong class="text-gray-800">La Plantation (Królestwo Pieprzu):</strong> Zrozumieliśmy, dlaczego kampocki pieprz to kulinarny luksus na skalę światową. Spacerowaliśmy wśród zielonych pnączy i próbowaliśmy ziaren, dowiadując się, czym różni się pieprz czarny, od czerwonego, białego i zielonego. Jego aromat długo unosił się w powietrzu.</li>
+                        <li class="pl-4 border-l-4 border-brand-blue"><strong class="text-gray-800">Kep Crab Market i Plaża:</strong> Finał dnia to prawdziwa nadmorska uczta. Na gwarnym targu w Kep patrzyliśmy, jak z oceanu wyciągane są kosze pełne najświeższych, błękitnych krabów. Momentalnie trafiły one na nasze talerze, przygotowane ze wspomnianym wcześniej, świeżym zielonym pieprzem z Kampotu. Z pełnymi brzuchami zrelaksowaliśmy się na rozgrzanym piasku plaży nad Zatoką Tajlandzką.</li>
+                    </ul>
+                `,
+                placeholders: [
+                    { src: 'images/Drzemka.jpg' },
+                    { src: 'images/kampot.jpg' },
+                    { src: 'images/Krab.jpg' },
+                    { src: 'images/Pieprz.jpg' },
+                ]
+            },
+            {
+                id: 'wyspy',
+                title: '27.02-04.03: Wyspy Koh Rong, Three Brothers i Sleeper Bus',
+                date: '27.02 - 04.03.2026',
+                icon: '🏝️',
+                intro: 'Setki kilometrów zwiedzania za nami, nadszedł czas na wielką, rajską nagrodę! Z Sihanoukville wskoczyliśmy na ryczącego speedboata i uciekliśmy na magiczną wyspę Koh Rong.',
+                content: `
+                    <p class="mb-4"><strong>27-28.02: Skok do raju i błogie lenistwo.</strong> Gdy tylko dopłynęliśmy na Koh Rong, zrzuciliśmy buty i nie założyliśmy ich aż do wieczora! Krystaliczna, turkusowa woda zatoki była ciepła jak w domowej wannie. Spędziliśmy godziny na relaksującym plażowaniu, budowaniu zamków z miękkiego jak mąka piasku, sączeniu szejków i całkowitym resecie głowy.</p>
+                    <p class="mb-4 bg-blue-50 p-4 rounded-xl border border-blue-100"><strong>01.03: Piracka przygoda!</strong> Wypłynęliśmy w całodniowy, fantastyczny rejs z niezawodnymi chłopakami z ekipy <strong>"Three Brothers"</strong>. Pływaliśmy w okolicach Koh Rong Sanloem. Zakładaliśmy maski do snorkelingu, by podziwiać rafę, z zapałem łowiliśmy ryby prosto z pokładu, jedliśmy wyborną ucztę łódkową i wylegaliśmy się na ukrytych, dzikich plażach.</p>
+                    <p class="mb-4 font-bold text-brand-green">02.03: Nocna Magia na Kółkach!</p>
+                    <p class="mb-4">Po powrocie na ląd do Sihanoukville zafundowaliśmy sobie ekscytującą drogę powrotną – wsiedliśmy w nocny autobus sypialniany (<strong>Sleeper Bus</strong>). Dla Lilki i małego Tomka spanie w prawdziwych łóżkach zamontowanych w wielkim autobusie, który pędził przez uśpioną Kambodżę, było wspaniałą, magiczną przygodą.</p>
+                    <p class="mb-4">03 i 04.03 to powrót do Siem Reap po rześkim poranku w autobusie, zrobienie ostatnich pamiątkowych zakupów, zjedzenie pożegnalnego posiłku, seria długich lotów i wreszcie meldunek z powrotem w naszym kochanym Chorzowie!</p>
+                `,
+                placeholders: [
+                    { src: 'images/plaza.jpg' },
+                    { src: 'images/bracia.jpg' },
+                    { src: 'images/sleep1.jpg' },
+                    { src: 'images/sleep2.jpg' },
+                ]
+            }
+        ];
+
+        // --- INTERACTION LOGIC ---
+        
+        // Render Timeline Navigation
+        function renderTimelineNav() {
+            const navContainer = document.getElementById('story-nav');
+            storyData.forEach((item, index) => {
+                const btn = document.createElement('button');
+                btn.className = `timeline-node w-full text-left px-4 py-3 rounded-xl mb-2 flex items-center justify-between text-gray-700 hover:bg-gray-50 focus:outline-none ${index === 0 ? 'active' : ''}`;
+                btn.onclick = () => loadStoryContent(item.id, btn);
+                
+                btn.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="node-icon bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-sm transition-colors min-w-[32px]">${item.icon}</span>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm md:text-base leading-tight mb-1">${item.title}</span>
+                            <span class="text-xs opacity-80">${item.date}</span>
+                        </div>
+                    </div>
+                `;
+                navContainer.appendChild(btn);
+            });
+            
+            // Load initial content using firstElementChild to safely skip text nodes
+            loadStoryContent(storyData[0].id, navContainer.firstElementChild);
+        }
+
+        // Load specific story content into the main view panel
+        function loadStoryContent(id, clickedBtn) {
+            // Update active state safely
+            document.querySelectorAll('.timeline-node').forEach(n => n.classList.remove('active'));
+            if(clickedBtn && clickedBtn.classList) clickedBtn.classList.add('active');
+
+            const item = storyData.find(d => d.id === id);
+            const contentContainer = document.getElementById('story-content');
+            
+            // Adjust grid columns based on number of placeholders (1 vs 4)
+            const gridClass = item.placeholders.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2';
+
+            // Generate images HTML dynamically
+            const placeholdersHtml = item.placeholders.map(p => {
+                if (p.src) {
+                     return `<img src="${p.src}" alt="Zdjęcie z wyprawy" class="user-photo mt-6">`;
+                } else {
+                     return `
+                        <div class="photo-placeholder mt-6 bg-white shadow-sm border-gray-300">
+                            <div>
+                                <span class="block text-3xl mb-2">📸</span>
+                                <span class="text-sm font-bold leading-tight block px-2">[Zdjęcie: ${p.text}]</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            // Fade out, update, fade in
+            contentContainer.classList.remove('animate-fade-in');
+            // trigger reflow
+            void contentContainer.offsetWidth;
+            
+            contentContainer.innerHTML = `
+                <div class="flex items-center space-x-4 mb-6">
+                    <span class="text-5xl">${item.icon}</span>
+                    <div>
+                        <h3 class="text-2xl md:text-3xl font-serif font-bold text-gray-800">${item.title}</h3>
+                        <span class="text-brand-orange font-bold text-sm tracking-wider uppercase">${item.date}</span>
+                    </div>
+                </div>
+                <div class="prose max-w-none text-gray-700 leading-relaxed text-lg">
+                    <p class="font-bold text-brand-green italic mb-6">${item.intro}</p>
+                    ${item.content}
+                </div>
+                <div class="grid ${gridClass} gap-4 mt-8">
+                    ${placeholdersHtml}
+                </div>
+            `;
+            
+            contentContainer.classList.add('animate-fade-in');
+        }
+
+        // --- CHART.JS IMPLEMENTATION ---
+        function initCharts() {
+            // Data extracted from the report
+            const rawDistances = {
+                samoloty: 24200,
+                autobusy: 1250,
+                samochody: 1075,
+                pieszo: 200,
+                tuktuki: 180,
+                lodzie: 105
+            };
+
+            // 1. Doughnut Chart: Overall Scale (Flights vs Ground/Water)
+            const groundTotal = rawDistances.autobusy + rawDistances.samochody + rawDistances.pieszo + rawDistances.tuktuki + rawDistances.lodzie;
+            
+            const ctxTotal = document.getElementById('totalDistanceChart').getContext('2d');
+            new Chart(ctxTotal, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Samoloty (Długi Dystans)', 'Transport Lokalny (Kambodża)'],
+                    datasets: [{
+                        data: [rawDistances.samoloty, groundTotal],
+                        backgroundColor: ['#e9c46a', '#2d6a4f'],
+                        borderWidth: 2,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // CRITICAL for filling container properly
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Segoe UI' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw.toLocaleString()} km`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            // 2. Bar Chart: Breakdown of Local Transport
+            const ctxGround = document.getElementById('groundTransportChart').getContext('2d');
+            new Chart(ctxGround, {
+                type: 'bar',
+                data: {
+                    labels: ['Autobusy', 'Samochody', 'Pieszo', 'Tuk-Tuki', 'Łodzie'],
+                    datasets: [{
+                        label: 'Przejechane Kilometry',
+                        data: [rawDistances.autobusy, rawDistances.samochody, rawDistances.pieszo, rawDistances.tuktuki, rawDistances.lodzie],
+                        backgroundColor: [
+                            '#2a9d8f', // Autobusy
+                            '#e76f51', // Samochody
+                            '#52b788', // Pieszo
+                            '#e9c46a', // Tuk-tuki
+                            '#457b9d'  // Łodzie
+                        ],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // CRITICAL for responsive layout in container
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' },
+                            title: { display: true, text: 'Kilometry (km)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` Dystans: ${context.raw} km`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize App on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTimelineNav();
+            initCharts();
+        });
+
+    </script>
+</body>
+</html>
