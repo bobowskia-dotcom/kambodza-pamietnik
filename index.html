@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="pl" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
@@ -184,9 +184,28 @@
         .easter-egg:hover {
             transform: scale(1.4) rotate(10deg);
         }
+
+        /* Animacja grającej muzyki */
+        @keyframes pulse-music {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(45, 106, 79, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(45, 106, 79, 0); }
+        }
+        .music-playing {
+            animation: pulse-music 2s infinite;
+            background-color: #2d6a4f !important;
+        }
     </style>
 </head>
 <body class="bg-brand-bg font-sans leading-relaxed relative">
+
+    <!-- AUDIO ELEMENTS -->
+    <audio id="bg-music-main" loop>
+        <source src="audio/main.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="bg-music-miki" loop>
+        <source src="audio/love.mp3" type="audio/mpeg">
+    </audio>
 
     <!-- Navigation Header -->
     <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-200">
@@ -207,8 +226,8 @@
     </nav>
 
     <!-- Hero Section with Parallax Background Image -->
-<header class="relative pt-24 pb-32 lg:pt-32 lg:pb-40 overflow-hidden text-white bg-fixed bg-center bg-cover shadow-inner border-b-4 border-brand-yellow" 
-        style="background-image: linear-gradient(rgba(45, 106, 79, 0.75), rgba(30, 41, 59, 0.75)), url('images/tlo.jpg');">
+    <header class="relative pt-24 pb-32 lg:pt-32 lg:pb-40 overflow-hidden text-white bg-fixed bg-center bg-cover shadow-inner border-b-4 border-brand-yellow" 
+            style="background-image: linear-gradient(rgba(45, 106, 79, 0.75), rgba(30, 41, 59, 0.75)), url('images/tlo.jpg');">
         
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10" data-aos="fade-up" data-aos-duration="1000">
             <span class="inline-block py-1 px-4 rounded-full bg-white/20 backdrop-blur-md text-brand-yellow font-bold text-sm tracking-widest uppercase mb-6 shadow-lg border border-white/30">
@@ -281,15 +300,13 @@
             <!-- Interaktywny Pojemnik Mapy z Tłem Obrazkowym -->
             <div id="mapContainer" class="relative w-full max-w-5xl mx-auto rounded-3xl shadow-2xl border-4 border-orange-900/40 overflow-hidden bg-[#e6d5b8]" data-aos="zoom-in" data-aos-delay="200">
                 
-                <!-- TUTAJ PODMIENISZ ZDJĘCIE! Wklej link do swojej wygenerowanej mapy w atrybucie 'src' -->
-                <img id="map-background" src="images/mapa1.jpg" alt="Nasza Magiczna Mapa Kambodży" class="w-full h-auto object-cover opacity-80" />
+                <!-- TUTAJ PODMIENISZ ZDJĘCIE MAPY -->
+                <img id="map-background" src="images/mapa1.jpg" onerror="this.onerror=null; this.src='https://placehold.co/1200x800/e6d5b8/c1121f?text=Brak+pliku+mapy!+Sprawdz+nazwe+lub+rozszerzenie';" alt="Nasza Magiczna Mapa Kambodży" class="w-full h-auto object-cover opacity-80" />
 
                 <!-- CANVAS do rysowania podróżującej przerywanej linii i pojazdów -->
-                <!-- Jest nałożony idealnie na obrazek z mapą -->
                 <canvas id="routeCanvas" class="absolute inset-0 z-10 pointer-events-none w-full h-full"></canvas>
                 
                 <!-- PINEZKI (HTML Elements) -->
-                <!-- PRO TIP: Zmieniaj wartości `top:` i `left:` poniżej, żeby idealnie dopasować pineski do miast na Twoim wygenerowanym obrazku! -->
                 
                 <!-- 1. Siem Reap -->
                 <div id="pin-siem-reap" class="absolute z-20 w-12 h-12 -ml-6 -mt-6 flex flex-col items-center justify-center cursor-pointer group" style="top: 25%; left: 40%;" onclick="goToStory('16-02')">
@@ -338,7 +355,7 @@
                 
                 <!-- Bus Element moving (Static Text Note) -->
                 <div class="absolute bottom-4 right-4 z-20 text-amber-900 font-serif italic text-xs md:text-sm opacity-90 cursor-default bg-white/60 px-3 py-1 rounded backdrop-blur-md border border-amber-900/30 shadow-sm">
-                    Nasza droga! 🤠 
+                    Nasza droga! 🤠 Zwróć uwagę na animowany powrót Sleeper Busem!
                 </div>
             </div>
         </div>
@@ -385,7 +402,6 @@
                         <div class="p-4 text-center">
                             <span class="block text-4xl mb-2">📸 🐀</span>
                             <img src="images/Szczur.jpeg" class="w-full rounded-xl object-cover min-h-[350px] shadow-sm">
-                            
                         </div>
                     </div>
                 </div>
@@ -591,6 +607,12 @@
     <button onclick="openMikiModal()" class="fixed bottom-4 left-4 z-50 bg-brand-yellow text-gray-800 p-3 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 focus:outline-none opacity-50 hover:opacity-100" title="Sekret Polish Eagle'a!">
         <span class="text-3xl block leading-none">🛺</span>
     </button>
+    
+    <!-- MUSIC TOGGLE BUTTON -->
+    <button id="music-toggle-btn" onclick="toggleMainMusic()" class="fixed bottom-4 right-4 z-50 bg-brand-green/80 backdrop-blur-md text-white px-5 py-3 rounded-full shadow-2xl hover:bg-brand-green transition-all duration-300 focus:outline-none flex items-center gap-2 border border-white/20">
+        <span id="music-icon" class="text-xl">🔇</span>
+        <span class="hidden md:inline font-bold tracking-wide text-sm">Poczuj klimat</span>
+    </button>
 
     <!-- MODALS (WYSKAKUJĄCE OKIENKA) -->
 
@@ -664,6 +686,27 @@
 
     <!-- Application Logic -->
     <script>
+        // --- AUDIO LOGIC ---
+        let isMainMusicPlaying = false;
+        
+        function toggleMainMusic() {
+            const mainAudio = document.getElementById('bg-music-main');
+            const musicBtn = document.getElementById('music-toggle-btn');
+            const musicBtnIcon = document.getElementById('music-icon');
+            
+            if (isMainMusicPlaying) {
+                mainAudio.pause();
+                isMainMusicPlaying = false;
+                musicBtnIcon.innerText = '🔇';
+                musicBtn.classList.remove('music-playing');
+            } else {
+                mainAudio.play().catch(e => console.log("Przeglądarka zablokowała audio: ", e));
+                isMainMusicPlaying = true;
+                musicBtnIcon.innerText = '🔊';
+                musicBtn.classList.add('music-playing');
+            }
+        }
+        
         // --- DATA LAYER FOR PERSONS ---
         const personsData = {
             'adam': { name: 'Tata Adam', icon: '👨', photoSrc: 'images/Adam.jpeg', placeholder: 'Miejsce na portret Taty z wyjazdu!' },
@@ -725,9 +768,9 @@
                 `,
                 placeholders: [
                     { src: 'images/PreahKhan.jpg' },
-{ src: 'images/Tasamo.jpg' },
+                    { src: 'images/Tasamo.jpg' },
                     { src: 'images/neak.jpg' },
-                                        { src: 'images/prerup.jpg' }
+                    { src: 'images/prerup.jpg' }
                 ],
                 album: []
             },
@@ -809,7 +852,7 @@
                 `,
                 placeholders: [
                      { src: 'images/slonie.jpg' },
-{ src: 'images/Kapiel.jpg' },
+                     { src: 'images/Kapiel.jpg' },
                     { src: 'images/traba.jpg' },
                     { src: 'images/slon.jpg' },
                 ],
@@ -1079,6 +1122,12 @@
 
         // --- MIKI TIUK TIUK LOGIC ---
         function openMikiModal() {
+            const mainAudio = document.getElementById('bg-music-main');
+            const mikiAudio = document.getElementById('bg-music-miki');
+            if (isMainMusicPlaying) mainAudio.pause();
+            mikiAudio.currentTime = 0;
+            mikiAudio.play().catch(e => console.log("Miki audio auto-play zablokowane:", e));
+
             let photosToRender = mikiTiukTiukAlbum;
             if (!photosToRender || photosToRender.length === 0) {
                 photosToRender = Array.from({length: 8}, (_, i) => ({ 
@@ -1118,6 +1167,11 @@
         }
 
         function closeMikiModal() {
+            const mainAudio = document.getElementById('bg-music-main');
+            const mikiAudio = document.getElementById('bg-music-miki');
+            mikiAudio.pause();
+            if (isMainMusicPlaying) mainAudio.play().catch(e => console.log("Główne audio auto-play zablokowane:", e));
+
             const modal = document.getElementById('miki-modal');
             modal.classList.add('opacity-0');
             
@@ -1146,7 +1200,6 @@
             const navContainer = document.getElementById('story-nav');
             storyData.forEach((item, index) => {
                 const btn = document.createElement('button');
-                // Zmieniono: Dodano atrybut ID na potrzeby Mapy
                 btn.id = 'nav-btn-' + item.id;
                 btn.className = `timeline-node w-full text-left px-4 py-3 rounded-xl mb-2 flex items-center justify-between text-gray-700 hover:bg-gray-50 focus:outline-none ${index === 0 ? 'active' : ''}`;
                 btn.onclick = () => loadStoryContent(item.id, btn);
@@ -1334,7 +1387,6 @@
                 requestAnimationFrame(draw);
             }
             
-            // Uruchomienie mapy dopiero gdy obrazek się wczyta
             const mapBg = document.getElementById('map-background');
             if (mapBg.complete) {
                 setTimeout(draw, 500);
@@ -1484,6 +1536,3 @@
 </body>
 
 </html>
-
-
-
